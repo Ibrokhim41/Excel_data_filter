@@ -1,41 +1,118 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import moment from "moment/moment";
 
 function App() {
-  function download(filename, text) {
-    var element = document.createElement("a");
-    element.setAttribute(
-      "href",
-      "data:text/plain;charset=utf-8," + encodeURIComponent(text)
-    );
-    element.setAttribute("download", filename);
+  const [headers, setHeaders] = useState([]);
+  const [datas, setDatas] = useState([]);
+  const [fileName, setFileName] = useState("");
+  const [date, setDate] = useState("")
 
-    element.style.display = "none";
-    document.body.appendChild(element);
-
-    element.click();
-
-    document.body.removeChild(element);
+  function downloadPdf() {
+    // console.log(typeof fileName)
+    let groups = devide_into_groups(datas);
+    for (const e of groups) {
+      e.groups = convert(e.groups);
+    }
+    for (const e of groups) {
+      const doc = new jsPDF();
+      const head = [e.groups.header];
+      const body = e.groups.body;
+      doc.setFontSize(11)
+      doc.text(
+        `Fan nomi: t'est`,
+        // `Fan nomi: ${fileName}`,
+        10,
+        10
+      );
+      doc.text(
+        `Guruh: ${e.title.replace(" cohort", "")}`,
+        10,
+        20
+      );
+      doc.text(
+        `Sana: ${moment(Number(date)).format("DD-MM-YYYY")}`,
+        10,
+        30
+      );
+      autoTable(doc, {
+        startY: 40,
+        head: head,
+        body: body,
+      });
+      doc.text("Ma'lumotlar bazasi bo'lim boshlig'i", 10, doc.lastAutoTable.finalY + 10);
+      doc.text("Abdurauf", 170, doc.lastAutoTable.finalY + 10);
+      doc.save(`${fileName} - ${e.title.replace(" cohort", "")}.pdf`);
+    }
   }
 
-  function test(filename, text) {
-    const doc = new jsPDF()
+  function devide_into_groups(data) {
+    const groups = [];
+    let group_list = data.map((e) => e["Guruh"]);
+    group_list = new Set(group_list);
+    let current_group = {
+      title: "",
+      groups: [],
+    };
+    current_group.title = data[0]["Guruh"];
+    for (const t of group_list) {
+      current_group.title = t;
+      for (const e of data) {
+        if (e["Guruh"] === t) {
+          current_group.groups.push(e);
+        }
+      }
+      groups.push(current_group);
+      current_group = {
+        title: "",
+        groups: [],
+      };
+    }
 
-    // autoTable(doc, {html})
-    autoTable(doc, {
-      head: [['Name', 'Last Name', 'Guruh', 'Cohorts', 'Test: Testga kirish(Real)', 'Kurs bo\'yicha jami (Real)']],
-      body: [
-        ['NORMURODOV', 'GULNOZAXON', 'MIIT-02', 'Raqamli iqtisodiyot', '93', '93'],
-      ]
-    })
+    return groups;
+  }
 
-    doc.save('test.pdf')
-
+  function convert(data) {
+    let header = [];
+    for (const e of headers) {
+      if (e.value) {
+        header.push(e);
+      }
+    }
+    const body = [];
+    for (const element of data) {
+      let cell = [];
+      for (const con of header) {
+        if (con.value) {
+          if (con.title === "Guruh") {
+            const group = element["Guruh"].replace(" cohort", "");
+            cell.push(group);
+          } else {
+            cell.push(element[con.title]);
+          }
+        }
+      }
+      body.push(cell);
+    }
+    header = header.map((e) => {
+      if (e.title === "Dastlabki nom") {
+        return "Familiya";
+      } else if (e.title === "Familiya") {
+        return "Ism";
+      } else {
+        return e.title;
+      }
+    });
+    return {
+      header: header,
+      body: body,
+    };
   }
 
   function loadExcel(file) {
+    setFileName(file.target.files[0].name.replace(".xlsx", " "));
     const promise = new Promise((resolve, reject) => {
       const fileReader = new FileReader();
       fileReader.readAsArrayBuffer(file.target.files[0]);
@@ -57,9 +134,33 @@ function App() {
       };
     });
     promise.then((data) => {
-      console.log(data);
-      // checkObject(data);
+      setDate(data[0]['Last downloaded from this course'] + '000')
+      handleHeaders(data);
+      const new_data = data.sort((a, b) => {
+        return a["Dastlabki nom"].localeCompare(b["Dastlabki nom"]);
+      });
+      setDatas(new_data);
     });
+  }
+
+  function handleHeaders(data) {
+    const keys = Object.keys(data[0]);
+    const values = [];
+    for (const el of keys) {
+      if (
+        el !== "Foydalanuvchi nomi" &&
+        el !== "Bo'lim" &&
+        el !== "Last downloaded from this course" &&
+        el !== "Cohorts" &&
+        !el.includes(" jami ")
+      ) {
+        values.push({
+          title: el,
+          value: true,
+        });
+      }
+    }
+    setHeaders(values);
   }
 
   return (
@@ -89,12 +190,7 @@ function App() {
           className="w-full h-full opacity-0 absolute top-0 left-0 cursor-pointer"
         />
       </div>
-      <div
-        className=""
-        onClick={test}
-      >
-        download
-      </div>
+
       {/* <ul
         className={`${
           error?.length === 0 && "hidden"
@@ -106,6 +202,39 @@ function App() {
           </li>
         ))}
       </ul> */}
+      <div className="flex ">
+        {headers?.map((data) => (
+          <div key={data.title} className="flex flex-wrap mx-2 select-none">
+            <label htmlFor={`${data.title}`}>{data.title}</label>
+            <input
+              type="checkbox"
+              defaultChecked={data.value}
+              id={`${data.title}`}
+              onChange={(e) => {
+                const new_data = {
+                  title: data.title,
+                  value: e.target.checked,
+                };
+                const new_headers = [];
+                for (const e of headers) {
+                  if (e.title === data.title) {
+                    new_headers.push(new_data);
+                  } else {
+                    new_headers.push(e);
+                  }
+                }
+                setHeaders(new_headers);
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div
+        className="test relative w-[500px] group hover:bg-blue-300 flex flex-col justify-center items-center border-[2px] border-slate-800 rounded-md p-[5px] mt-[15px] cursor-pointer"
+        onClick={downloadPdf}
+      >
+        Yuklab olish
+      </div>
     </div>
   );
 }
