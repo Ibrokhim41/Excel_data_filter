@@ -7,6 +7,7 @@ import moment from "moment/moment";
 function App() {
   const [headers, setHeaders] = useState([]);
   const [datas, setDatas] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [fileName, setFileName] = useState("");
   const [date, setDate] = useState("");
 
@@ -19,36 +20,36 @@ function App() {
       alert("Sana kiritilmagan");
       return false;
     }
-    let groups = devide_into_groups(datas);
+
     for (const e of groups) {
-      e.groups = convert(e.groups);
-    }
-    for (const e of groups) {
-      const doc = new jsPDF();
-      const head = [e.groups.header];
-      const body = e.groups.body;
-      doc.setFontSize(11);
-      doc.text(`Fan nomi: ${fileName}`, 10, 10);
-      doc.text(`Guruh: ${e.title.replace(" cohort", "")}`, 10, 20);
-      doc.text(`Sana: ${date}`, 10, 30);
-      autoTable(doc, {
-        startY: 40,
-        head: head,
-        body: body,
-      });
-      doc.text(
-        "Ma'lumotlar bazasi bo'lim boshlig'i",
-        10,
-        doc.lastAutoTable.finalY + 10
-      );
-      doc.text("Xoliqov Abdurauf", 170, doc.lastAutoTable.finalY + 10);
-      doc.save(`${fileName} - ${e.title.replace(" cohort", "")}.pdf`);
+      if (e.value) {
+        const doc = new jsPDF();
+        const head = [e.groups.header];
+        const body = e.groups.body;
+        doc.setFontSize(11);
+        doc.text(`Fan nomi: ${fileName}`, 10, 10);
+        doc.text(`Guruh: ${e.title.replace(" cohort", "")}`, 10, 20);
+        doc.text(`Sana: ${date}`, 10, 30);
+        autoTable(doc, {
+          startY: 40,
+          head: head,
+          body: body,
+        });
+        doc.text(
+          "Ma'lumotlar bazasi bo'lim boshlig'i",
+          10,
+          doc.lastAutoTable.finalY + 10
+        );
+        doc.text("Xoliqov Abdurauf", 170, doc.lastAutoTable.finalY + 10);
+        doc.save(`${fileName} - ${e.title.replace(" cohort", "")}.pdf`);
+      }
     }
 
-    setDate("");
-    setHeaders([]);
-    setDatas([]);
-    setFileName("");
+    // setDate("");
+    // setHeaders([]);
+    // setDatas([]);
+    // setGroups([]);
+    // setFileName("");
   }
 
   function devide_into_groups(data) {
@@ -58,6 +59,7 @@ function App() {
     let current_group = {
       title: "",
       groups: [],
+      value: true,
     };
     current_group.title = data[0]["Guruh"];
     for (const t of group_list) {
@@ -71,13 +73,14 @@ function App() {
       current_group = {
         title: "",
         groups: [],
+        value: true,
       };
     }
 
     return groups;
   }
 
-  function convert(data) {
+  function convert(data, headers) {
     let header = [];
     for (const e of headers) {
       if (e.value) {
@@ -143,33 +146,36 @@ function App() {
       };
     });
     promise.then((data) => {
-      handleHeaders(data);
+      const keys = Object.keys(data[0]);
+      const headers = [];
+      for (const el of keys) {
+        if (
+          el !== "Foydalanuvchi nomi" &&
+          el !== "Bo'lim" &&
+          el !== "Last downloaded from this course" &&
+          el !== "Cohorts" &&
+          !el.includes(" jami ")
+        ) {
+          headers.push({
+            title: el,
+            value: true,
+          });
+        }
+      }
+      setHeaders(headers);
       const new_data = data.sort((a, b) => {
         return a["Dastlabki nom"].localeCompare(b["Dastlabki nom"]);
       });
+      let groups = devide_into_groups(data);
+      for (const e of groups) {
+        e.groups = convert(e.groups, headers);
+      }
+      setGroups(groups)
       setDatas(new_data);
     });
   }
 
-  function handleHeaders(data) {
-    const keys = Object.keys(data[0]);
-    const values = [];
-    for (const el of keys) {
-      if (
-        el !== "Foydalanuvchi nomi" &&
-        el !== "Bo'lim" &&
-        el !== "Last downloaded from this course" &&
-        el !== "Cohorts" &&
-        !el.includes(" jami ")
-      ) {
-        values.push({
-          title: el,
-          value: true,
-        });
-      }
-    }
-    setHeaders(values);
-  }
+  console.log(groups)
 
   return (
     <div className="flex flex-col items-center justify-center mt-[50px]">
@@ -205,7 +211,9 @@ function App() {
       >
         {headers?.map((data) => (
           <div key={data.title} className="flex flex-wrap mx-2 select-none">
-            <label htmlFor={`${data.title}`}>{data.title}</label>
+            <label htmlFor={`${data.title}`}>
+              {data.title.replace(" cohort", "")}
+            </label>
             <input
               type="checkbox"
               defaultChecked={data.value}
@@ -224,6 +232,38 @@ function App() {
                   }
                 }
                 setHeaders(new_headers);
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div
+        className={`${
+          headers.length ? "flex" : "hidden"
+        }  mt-4 border border-gray-400 py-1 px-2`}
+      >
+        <div className="font-bold">Gruruhlar: </div>
+        {groups?.map((data) => (
+          <div key={data.title} className="flex flex-wrap mx-2 select-none">
+            <label htmlFor={`${data.title}`}>{data.title}</label>
+            <input
+              type="checkbox"
+              defaultChecked={data.value}
+              id={`${data.title}`}
+              onChange={(e) => {
+                const new_data = {
+                  ...data,
+                  value: e.target.checked,
+                };
+                const new_group = [];
+                for (const e of groups) {
+                  if (e.title === data.title) {
+                    new_group.push(new_data);
+                  } else {
+                    new_group.push(e);
+                  }
+                }
+                setGroups(new_group);
               }}
             />
           </div>
