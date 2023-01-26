@@ -135,7 +135,6 @@ function App() {
       };
     });
     promise.then((data) => {
-      setDate(data[0]["Last downloaded from this course"] + "000");
       handleHeaders(data);
       const new_data = data.sort((a, b) => {
         return a["Dastlabki nom"].localeCompare(b["Dastlabki nom"]);
