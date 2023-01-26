@@ -11,6 +11,14 @@ function App() {
   const [date, setDate] = useState("");
 
   function downloadPdf() {
+    if (datas === []) {
+      alert("Fayl yuklanmagan");
+      return false;
+    }
+    if (date === "") {
+      alert("Sana kiritilmagan");
+      return false;
+    }
     let groups = devide_into_groups(datas);
     for (const e of groups) {
       e.groups = convert(e.groups);
