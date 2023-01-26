@@ -8,10 +8,9 @@ function App() {
   const [headers, setHeaders] = useState([]);
   const [datas, setDatas] = useState([]);
   const [fileName, setFileName] = useState("");
-  const [date, setDate] = useState("")
+  const [date, setDate] = useState("");
 
   function downloadPdf() {
-    // console.log(typeof fileName)
     let groups = devide_into_groups(datas);
     for (const e of groups) {
       e.groups = convert(e.groups);
@@ -20,32 +19,28 @@ function App() {
       const doc = new jsPDF();
       const head = [e.groups.header];
       const body = e.groups.body;
-      doc.setFontSize(11)
-      doc.text(
-        `Fan nomi: t'est`,
-        // `Fan nomi: ${fileName}`,
-        10,
-        10
-      );
-      doc.text(
-        `Guruh: ${e.title.replace(" cohort", "")}`,
-        10,
-        20
-      );
-      doc.text(
-        `Sana: ${moment(Number(date)).format("DD-MM-YYYY")}`,
-        10,
-        30
-      );
+      doc.setFontSize(11);
+      doc.text(`Fan nomi: ${fileName}`, 10, 10);
+      doc.text(`Guruh: ${e.title.replace(" cohort", "")}`, 10, 20);
+      doc.text(`Sana: ${date}`, 10, 30);
       autoTable(doc, {
         startY: 40,
         head: head,
         body: body,
       });
-      doc.text("Ma'lumotlar bazasi bo'lim boshlig'i", 10, doc.lastAutoTable.finalY + 10);
-      doc.text("Abdurauf", 170, doc.lastAutoTable.finalY + 10);
+      doc.text(
+        "Ma'lumotlar bazasi bo'lim boshlig'i",
+        10,
+        doc.lastAutoTable.finalY + 10
+      );
+      doc.text("Xoliqov Abdurauf", 170, doc.lastAutoTable.finalY + 10);
       doc.save(`${fileName} - ${e.title.replace(" cohort", "")}.pdf`);
     }
+
+    setDate("");
+    setHeaders([]);
+    setDatas([]);
+    setFileName("");
   }
 
   function devide_into_groups(data) {
@@ -96,6 +91,9 @@ function App() {
       }
       body.push(cell);
     }
+    for (let i = 0; i < body.length; i++) {
+      body[i].unshift(i + 1);
+    }
     header = header.map((e) => {
       if (e.title === "Dastlabki nom") {
         return "Familiya";
@@ -105,6 +103,7 @@ function App() {
         return e.title;
       }
     });
+    header.unshift("N");
     return {
       header: header,
       body: body,
@@ -112,7 +111,9 @@ function App() {
   }
 
   function loadExcel(file) {
-    setFileName(file.target.files[0].name.replace(".xlsx", " "));
+    setFileName(
+      file.target.files[0].name.replace(".xlsx", " ").replace("ʼ", "'")
+    );
     const promise = new Promise((resolve, reject) => {
       const fileReader = new FileReader();
       fileReader.readAsArrayBuffer(file.target.files[0]);
@@ -134,7 +135,7 @@ function App() {
       };
     });
     promise.then((data) => {
-      setDate(data[0]['Last downloaded from this course'] + '000')
+      setDate(data[0]["Last downloaded from this course"] + "000");
       handleHeaders(data);
       const new_data = data.sort((a, b) => {
         return a["Dastlabki nom"].localeCompare(b["Dastlabki nom"]);
@@ -190,19 +191,11 @@ function App() {
           className="w-full h-full opacity-0 absolute top-0 left-0 cursor-pointer"
         />
       </div>
-
-      {/* <ul
+      <div
         className={`${
-          error?.length === 0 && "hidden"
-        } w-[500px] border-[2px] border-slate-800 rounded-md mt-[20px] p-[15px]`}
+          headers.length ? "flex" : "hidden"
+        }  mt-4 border border-gray-400 py-1 px-2`}
       >
-        {error?.map((e, i) => (
-          <li key={i} className="text-red-600 underline">
-            {e}
-          </li>
-        ))}
-      </ul> */}
-      <div className="flex ">
         {headers?.map((data) => (
           <div key={data.title} className="flex flex-wrap mx-2 select-none">
             <label htmlFor={`${data.title}`}>{data.title}</label>
@@ -229,11 +222,22 @@ function App() {
           </div>
         ))}
       </div>
-      <div
-        className="test relative w-[500px] group hover:bg-blue-300 flex flex-col justify-center items-center border-[2px] border-slate-800 rounded-md p-[5px] mt-[15px] cursor-pointer"
-        onClick={downloadPdf}
-      >
-        Yuklab olish
+      <div>
+        <div
+          className="w-auto flex justify-end"
+          onChange={(e) => setDate(moment(e.target.value).format("DD-MM-YYYY"))}
+        >
+          <input
+            type="date"
+            className="border border-gray-500 rounded-md px-2 py-1 mt-2"
+          />
+        </div>
+        <div
+          className="test relative w-[500px] group hover:bg-blue-300 flex flex-col justify-center items-center border-[2px] border-slate-800 rounded-md p-[5px] mt-[15px] cursor-pointer"
+          onClick={downloadPdf}
+        >
+          Yuklab olish
+        </div>
       </div>
     </div>
   );
