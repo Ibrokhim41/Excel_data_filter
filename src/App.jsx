@@ -27,17 +27,20 @@ function App() {
         const head = [e.groups.header];
         const body = e.groups.body;
         doc.setFontSize(11);
-        doc.text(`Fan nomi: ${fileName}`, 10, 10);
-        doc.text(`Guruh: ${e.title.replace(" cohort", "")}`, 10, 20);
-        doc.text(`Sana: ${date}`, 10, 30);
+        doc.text(`Fan nomi: ${fileName}`, 15, 10);
+        doc.text(`Guruh: ${e.title.replace(" cohort", "")}`, 15, 20);
+        doc.text(`Sana: ${date}`, 15, 30);
         autoTable(doc, {
+          theme: 'grid',
+          styles: {textColor: [0,0,0], fontStyle: 'bold'},
+          // headStyles: {textColor: [255,255,255]},
           startY: 40,
           head: head,
           body: body,
         });
         doc.text(
           "Ma'lumotlar bazasi bo'lim boshlig'i",
-          10,
+          15,
           doc.lastAutoTable.finalY + 10
         );
         doc.text("A.Xoliqov", 170, doc.lastAutoTable.finalY + 10);
