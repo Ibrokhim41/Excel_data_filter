@@ -40,7 +40,7 @@ function App() {
           10,
           doc.lastAutoTable.finalY + 10
         );
-        doc.text("Xoliqov Abdurauf", 170, doc.lastAutoTable.finalY + 10);
+        doc.text("A.Xoliqov", 170, doc.lastAutoTable.finalY + 10);
         doc.save(`${fileName} - ${e.title.replace(" cohort", "")}.pdf`);
       }
     }
