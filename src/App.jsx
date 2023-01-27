@@ -12,7 +12,7 @@ function App() {
   const [date, setDate] = useState("");
 
   function downloadPdf() {
-    if (datas === []) {
+    if (datas == []) {
       alert("Fayl yuklanmagan");
       return false;
     }
@@ -110,6 +110,8 @@ function App() {
         return "Familiya";
       } else if (e.title === "Familiya") {
         return "Ism";
+      } else if (e.title.includes('(Real)')) {
+        return "Natija"
       } else {
         return e.title;
       }
@@ -175,7 +177,6 @@ function App() {
     });
   }
 
-  console.log(groups)
 
   return (
     <div className="flex flex-col items-center justify-center mt-[50px]">
