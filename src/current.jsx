@@ -1,15 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import moment from "moment/moment";
+import axios from "axios";
+import { QRCodeCanvas } from "qrcode.react";
+import qrcode from "qrcode-generator-es6";
 
 function App() {
+  const docu = document.createElement("div");
+  let ko = document.getElementById("ko");
+  docu.setAttribute("id", "value");
+  const qr = new qrcode(0, "H");
+  qr.addData("thisismydata");
+  qr.make();
+  ko.innerHTML = qr.createSvgTag({
+    cellColor: (c, r) =>
+      "hsl(" +
+      (((c % 15) * 360) / 15).toFixed(3) +
+      ", 100%, " +
+      (((r % 15) * 100) / 15).toFixed(3) +
+      "%)",
+    obstruction: {
+      width: 2,
+      height: 3
+    }
+  });
+  ko.innerHTML = qr.createImgTag();
+  console.log(ko);
+  const [qrCodeLink, setQrCodeLink] = useState("");
   const [headers, setHeaders] = useState([]);
   const [datas, setDatas] = useState([]);
   const [groups, setGroups] = useState([]);
   const [fileName, setFileName] = useState("");
   const [date, setDate] = useState("");
+  const [eTitle, setETitle] = useState("");
 
   function downloadPdf() {
     if (datas == []) {
@@ -21,38 +45,82 @@ function App() {
       return false;
     }
 
+    const postData = convertToBackend(datas);
+
+    async function getQrCode(groups, e) {
+      let qr = await axios
+        .post(
+          // "http://10.10.115.20:8000/exam/result/v2/",
+          "https://registr.tsue.uz/exam/result/v2/",
+          {
+            data: groups,
+          }
+        )
+        .then((response) => {
+          setQrCodeLink({
+            ulr: response.data.url,
+            data: e,
+          });
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+
+      return qr;
+    }
+
     for (const e of groups) {
       if (e.value) {
-        const doc = new jsPDF();
-        const head = [e.groups.header];
-        const body = e.groups.body;
-        doc.setFontSize(11);
-        doc.text(`Fan nomi: ${fileName}`, 15, 10);
-        doc.text(`Guruh: ${e.title.replace(" cohort", "")}`, 15, 20);
-        doc.text(`Sana: ${date}`, 15, 30);
-        autoTable(doc, {
-          theme: "grid",
-          styles: { textColor: [0, 0, 0], fontStyle: "bold" },
-          // headStyles: {textColor: [255,255,255]},
-          startY: 40,
-          head: head,
-          body: body,
-        });
-        doc.text(
-          "Ma'lumotlar bazasi bo'lim boshlig'i",
-          15,
-          doc.lastAutoTable.finalY + 10
-        );
-        doc.text("A.Xoliqov", 170, doc.lastAutoTable.finalY + 10);
-        doc.save(`${fileName} - ${e.title.replace(" cohort", "")}.pdf`);
+        const groups = sortGroupForPost(datas);
+        const group_list = filterGroups(groups, e.title);
+        getQrCode(group_list, e);
       }
     }
 
-    setDate("");
-    setHeaders([]);
-    setDatas([]);
-    setGroups([]);
-    setFileName("");
+    // for (const e of groups) {
+    //     if (e.value) {
+    //       const groups = sortGroupForPost(datas);
+    //       const group_list = filterGroups(groups, e.title);
+    //       getQrCode(group_list);
+    //       // const group_list = filterGroups(postData, e.title);
+    //       const cv = document.getElementById("qrcode");
+    //       // const cv2 = document.createElement('div')
+    //       // cv2.appndChild(<QRCodeCanvas  id="qrcode" value={qrCodeLink}></QRCodeCanvas>)
+    //       const qrCodeImage = cv.toDataURL("image/jpeg", 1.0);
+    //       // const svgtext = document.getElementById("svgtext");
+    //       // const svgTextImage = svgtext.toDataURL("image/jpeg", 1.0);
+    //       const doc = new jsPDF();
+    //       doc.addImage(qrCodeImage, "JPEG", 170, 5, 25, 25);
+    //       // doc.addImage(svgTextImage, "JPEG", 100, 50, 25, 25);
+    //       const head = [e.groups.header];
+    //       const body = e.groups.body;
+    //       doc.setFontSize(11);
+    //       doc.text(`Fan nomi: ${fileName}`, 15, 10);
+    //       // doc.text(`Fan nomi: ${toUtf8(fileName)}`, 15, 10);
+    //       doc.text(`Guruh: ${e.title.replace(" cohort", "")}`, 15, 20);
+    //       doc.text(`Sana: ${date}`, 15, 30);
+    //       autoTable(doc, {
+    //         theme: "grid",
+    //         styles: { textColor: [0, 0, 0], fontStyle: "bold" },
+    //         startY: 40,
+    //         head: head,
+    //         body: body,
+    //       });
+    //       doc.text(
+    //         "Ma'lumotlar bazasi bo'lim boshlig'i",
+    //         15,
+    //         doc.lastAutoTable.finalY + 10
+    //       );
+    //       doc.text("A.Xoliqov", 170, doc.lastAutoTable.finalY + 10);
+    //       doc.save(`${fileName} - ${e.title.replace(" cohort", "")}.pdf`);
+    //     }
+    // }
+
+    // setDate("");
+    // setHeaders([]);
+    // setDatas([]);
+    // setGroups([]);
+    // setFileName("");
   }
 
   function devide_into_groups(data) {
@@ -120,53 +188,10 @@ function App() {
       }
     });
     header.unshift("N");
-    let new_header = new Set(header);
-    new_header = [...new_header];
-    console.log('natija', new_header)
     return {
-      header: new_header,
+      header: header,
       body: body,
     };
-  }
-  function returnResult(e) {
-    const keys = Object.keys(e);
-    let result = keys
-      .filter((e) => e.includes("(Real)"))
-      .filter((e) => !e.includes("jami"));
-    let new_result = "";
-    for (const e of headers) {
-      if (result.includes(e.title) && e.value) {
-        new_result = e.title;
-      }
-    }
-    console.log(new_result);
-    return new_result;
-  }
-
-  function convertToBackend(data) {
-    console.log(headers);
-    const results = {
-      subject_name: fileName,
-      date: date,
-      groups: [],
-    };
-
-    for (const e of data) {
-      const group = {
-        group_name: "group_name",
-        data: [],
-      };
-      group.group_name = e["Guruh"];
-      let group_data = {
-        f_name: e["Dastlabki nom"],
-        l_name: e["Familiya"],
-        result: returnResult(e),
-      };
-      group.data = group_data;
-      results.groups.push(group);
-    }
-
-    return results;
   }
 
   function loadExcel(file) {
@@ -206,7 +231,7 @@ function App() {
         ) {
           headers.push({
             title: el,
-            value: el.includes("(Real)") ? false : true,
+            value: true,
           });
         }
       }
@@ -223,7 +248,67 @@ function App() {
     });
   }
 
-  console.log(headers);
+  function returnResult(e) {
+    const keys = Object.keys(e);
+    let result = keys
+      .filter((e) => e.includes("(Real)"))
+      .filter((e) => !e.includes("jami"));
+    let new_result = "";
+    for (const e of headers) {
+      if (result.includes(e.title) && e.value) {
+        new_result = e.title;
+      }
+    }
+    return e[new_result];
+  }
+
+  function convertToBackend(data) {
+    const results = {
+      name: fileName,
+      date: date,
+      groups: [],
+    };
+
+    for (const e of data) {
+      const group = {
+        name: "",
+        students: [],
+      };
+      group.name = e["Guruh"];
+      let group_data = {
+        f_name: e["Dastlabki nom"],
+        l_name: e["Familiya"],
+        result: returnResult(e),
+      };
+      group.students.push(group_data);
+      results.groups.push(group);
+    }
+    return results;
+  }
+
+  function filterGroups(data, group) {
+    // const result = data.filter((e) => e.group == group.replace(" cohort", ""));
+    const result = data.filter((e) => e.group == group.replace(" cohort", ""));
+    return result;
+  }
+
+  function sortGroupForPost(data) {
+    const res = [];
+    const res2 = [];
+    for (const e of data) {
+      const el = {
+        subject: fileName,
+        date: date,
+        last_name: e["Dastlabki nom"],
+        first_name: e["Familiya"],
+        group: e["Guruh"].replace(" cohort", ""),
+        result: returnResult(e),
+      };
+      res.push(el);
+    }
+
+    return res;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center mt-[50px]">
@@ -252,42 +337,25 @@ function App() {
           className="w-full h-full opacity-0 absolute top-0 left-0 cursor-pointer"
         />
       </div>
-      <button onClick={() => convertToBackend(datas)}>test</button>
       <div
         className={`${
           headers.length ? "flex" : "hidden"
         }  mt-4 border border-gray-400 py-1 px-2`}
       >
         {headers?.map((data) => (
-          <div
-            key={data.title}
-            className={`${
-              data.title == "Dastlabki nom" ||
-              data.title == "Familiya" ||
-              data.title == "Guruh"
-                ? "hidden"
-                : "flex"
-            } flex-wrap mx-2 select-none`}
-          >
+          <div key={data.title} className="flex flex-wrap mx-2 select-none">
             <label htmlFor={`${data.title}`}>
               {data.title.replace(" cohort", "")}
             </label>
             <input
               type="checkbox"
               defaultChecked={data.value}
-              checked={data.value}
               id={`${data.title}`}
               onChange={(e) => {
                 const new_data = {
                   title: data.title,
                   value: e.target.checked,
                 };
-                let prev_headers = [...headers];
-                prev_headers.forEach((e) => {
-                  if (e.title.includes("(Real)")) {
-                    e.value = false;
-                  }
-                });
                 const new_headers = [];
                 for (const e of headers) {
                   if (e.title === data.title) {
@@ -337,7 +405,8 @@ function App() {
       <div>
         <div
           className="w-auto flex justify-end"
-          onChange={(e) => setDate(moment(e.target.value).format("DD-MM-YYYY"))}
+          // onChange={(e) => setDate(moment(e.target.value).format("DD-MM-YYYY"))}
+          onChange={(e) => setDate(e.target.value)}
         >
           <input
             type="date"
@@ -351,6 +420,8 @@ function App() {
           Yuklab olish
         </div>
       </div>
+      {/* <QRCodeCanvas id="qrcode" value={qrCodeLink?.url} className="hidden" /> */}
+      <div id="ko"></div>
     </div>
   );
 }
