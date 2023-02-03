@@ -66,7 +66,6 @@ function App() {
         qr.addData(response.data.url)
         qr.make()
         docQr.innerHTML = qr.createImgTag()
-        console.log(docQr.children[0])
         const doc = new jsPDF();
         doc.addImage(docQr.children[0], "JPEG", 170, 5, 25, 25);
         const head = [e.groups.header];
