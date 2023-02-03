@@ -3,7 +3,6 @@ import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import axios from "axios";
-import { QRCodeCanvas } from "qrcode.react";
 import qrcode from "qrcode-generator-es6";
 
 function App() {
@@ -347,7 +346,6 @@ function App() {
         >
           Yuklab olish
         </div>
-        <QRCodeCanvas id="qrcode" value={qrCodeLink?.url} className="hidden" />
       </div>
     </div>
   );
