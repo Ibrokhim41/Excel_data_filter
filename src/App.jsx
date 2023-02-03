@@ -80,12 +80,12 @@ function App() {
           head: head,
           body: body,
         });
-        doc.text(
-          "Ma'lumotlar bazasi bo'lim boshlig'i",
-          15,
-          doc.lastAutoTable.finalY + 10
-        );
-        doc.text("A.Xoliqov", 170, doc.lastAutoTable.finalY + 10);
+        // doc.text(
+        //   "Ma'lumotlar bazasi bo'lim boshlig'i",
+        //   15,
+        //   doc.lastAutoTable.finalY + 10
+        // );
+        // doc.text("A.Xoliqov", 170, doc.lastAutoTable.finalY + 10);
         doc.save(`${fileName} - ${e.title.replace(" cohort", "")}.pdf`);
       })
       .catch((error) => {
