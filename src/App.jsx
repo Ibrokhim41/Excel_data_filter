@@ -66,7 +66,7 @@ function App() {
         qr.make()
         docQr.innerHTML = qr.createImgTag()
         const doc = new jsPDF();
-        doc.addImage(docQr.children[0], "JPEG", 170, 5, 25, 25);
+        doc.addImage(docQr.children[0], "JPEG", 165, 5, 32, 32);
         const head = [e.groups.header];
         const body = e.groups.body;
         doc.setFontSize(11);
