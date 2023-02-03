@@ -2,28 +2,73 @@ import { useState } from "react";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import moment from "moment/moment";
+import axios from "axios";
+import { QRCodeCanvas } from "qrcode.react";
+import qrcode from "qrcode-generator-es6";
 
 function App() {
   const [headers, setHeaders] = useState([]);
+  const [qrCodeLink, setQrCodeLink] = useState("");
   const [datas, setDatas] = useState([]);
   const [groups, setGroups] = useState([]);
   const [fileName, setFileName] = useState("");
   const [date, setDate] = useState("");
 
-  function downloadPdf() {
-    if (datas == []) {
-      alert("Fayl yuklanmagan");
-      return false;
+  function returnResult(e) {
+    const keys = Object.keys(e);
+    let result = keys
+      .filter((e) => e.includes("(Real)"))
+      .filter((e) => !e.includes("jami"));
+    let new_result = "";
+    for (const e of headers) {
+      if (result.includes(e.title) && e.value) {
+        new_result = e.title;
+      }
     }
-    if (date === "") {
-      alert("Sana kiritilmagan");
-      return false;
-    }
+    return e[new_result];
+  }
 
-    for (const e of groups) {
-      if (e.value) {
+  function filterGroups(data, group) {
+    const result = data.filter((e) => e.group == group.replace(" cohort", ""));
+    return result;
+  }
+
+  function sortGroupForPost(data) {
+    const res = [];
+    const res2 = [];
+    for (const e of data) {
+      const el = {
+        subject: fileName,
+        date: date,
+        last_name: e["Dastlabki nom"],
+        first_name: e["Familiya"],
+        group: e["Guruh"].replace(" cohort", ""),
+        result: returnResult(e),
+      };
+      res.push(el);
+    }
+    return res;
+  }
+
+  async function getQrCode(groups, e) {
+    let qr = await axios
+      .post(
+        // "http://10.10.115.20:8000/exam/result/v2/",
+        "https://registr.tsue.uz/exam/result/v2/",
+        {
+          data: groups,
+        }
+      )
+      .then((response) => {
+        const docQr = document.createElement('div')
+        docQr.setAttribute('id', 'qrimage')
+        const qr = new qrcode(0, "H")
+        qr.addData(response.data.url)
+        qr.make()
+        docQr.innerHTML = qr.createImgTag()
+        console.log(docQr.children[0])
         const doc = new jsPDF();
+        doc.addImage(docQr.children[0], "JPEG", 170, 5, 25, 25);
         const head = [e.groups.header];
         const body = e.groups.body;
         doc.setFontSize(11);
@@ -31,9 +76,8 @@ function App() {
         doc.text(`Guruh: ${e.title.replace(" cohort", "")}`, 15, 20);
         doc.text(`Sana: ${date}`, 15, 30);
         autoTable(doc, {
-          theme: 'grid',
-          styles: {textColor: [0,0,0], fontStyle: 'bold'},
-          // headStyles: {textColor: [255,255,255]},
+          theme: "grid",
+          styles: { textColor: [0, 0, 0], fontStyle: "bold" },
           startY: 40,
           head: head,
           body: body,
@@ -45,14 +89,29 @@ function App() {
         );
         doc.text("A.Xoliqov", 170, doc.lastAutoTable.finalY + 10);
         doc.save(`${fileName} - ${e.title.replace(" cohort", "")}.pdf`);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
+
+  function downloadPdf() {
+    if (datas == []) {
+      alert("Fayl yuklanmagan");
+      return false;
+    }
+    if (date === "") {
+      alert("Sana kiritilmagan");
+      return false;
+    }
+    for (const e of groups) {
+      if (e.value) {
+        const groups = sortGroupForPost(datas);
+        const group_list = filterGroups(groups, e.title);
+        getQrCode(group_list, e);
       }
     }
 
-    // setDate("");
-    // setHeaders([]);
-    // setDatas([]);
-    // setGroups([]);
-    // setFileName("");
   }
 
   function devide_into_groups(data) {
@@ -113,8 +172,8 @@ function App() {
         return "Familiya";
       } else if (e.title === "Familiya") {
         return "Ism";
-      } else if (e.title.includes('(Real)')) {
-        return "Natija"
+      } else if (e.title.includes("(Real)")) {
+        return "Natija";
       } else {
         return e.title;
       }
@@ -175,11 +234,10 @@ function App() {
       for (const e of groups) {
         e.groups = convert(e.groups, headers);
       }
-      setGroups(groups)
+      setGroups(groups);
       setDatas(new_data);
     });
   }
-
 
   return (
     <div className="flex flex-col items-center justify-center mt-[50px]">
@@ -276,7 +334,8 @@ function App() {
       <div>
         <div
           className="w-auto flex justify-end"
-          onChange={(e) => setDate(moment(e.target.value).format("DD-MM-YYYY"))}
+          // onChange={(e) => setDate(moment(e.target.value).format("DD-MM-YYYY"))}
+          onChange={(e) => setDate(e.target.value)}
         >
           <input
             type="date"
@@ -289,6 +348,7 @@ function App() {
         >
           Yuklab olish
         </div>
+        <QRCodeCanvas id="qrcode" value={qrCodeLink?.url} className="hidden" />
       </div>
     </div>
   );
